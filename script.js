@@ -7,8 +7,8 @@ highScoreDisplay.innerText = highScore;
 const scoreDisplay = document.getElementById("score");
 
 function getCurrentSpeed() {
-    let speed = 7 + Math.floor(score / 20) * 1;
-    if (speed > 50) speed = 50;
+    let speed = 5 + Math.floor(score / 40) * 1;
+    if (speed > 36) speed = 36;
     return speed;
 }
 
@@ -457,8 +457,8 @@ let enemyLaneIndexes = [];
 
 function getSpawnTop(index) {
     const otherTops = enemyTops.filter((_, i) => i !== index);
-    const highestTop = otherTops.length ? Math.min(...otherTops) : -100;
-    return highestTop - 260 - Math.random() * 80;
+    const highestTop = otherTops.length ? Math.min(...otherTops) : -120;
+    return highestTop - 340 - Math.random() * 120;
 }
 
 function updatePlayerPosition() {
@@ -493,7 +493,7 @@ function initializeEnemies() {
 
     enemyLaneIndexes = Array.from(enemies).map(() => Math.floor(Math.random() * lanePositions.length));
     enemyTops = Array.from(enemies).map((enemy, index) => {
-        const start = -100 - index * 260;
+        const start = -120 - index * 320;
         enemy.style.top = start + "px";
         enemy.style.left = lanePositions[enemyLaneIndexes[index]] + "px";
         return start;

@@ -5,6 +5,12 @@
     font-family:Arial, sans-serif;
 }
 
+html,
+body{
+    height:100%;
+    min-height:100%;
+}
+
 body{
     background:linear-gradient(135deg, #111827 0%, #1f2937 100%);
     display:flex;
@@ -18,7 +24,9 @@ body{
     position:relative;
     width:min(92vw, 560px);
     max-width:100%;
+    min-height:100vh;
     animation:fadeInUp 0.35s ease both;
+    overflow:hidden;
 }
 
 .feedback-layer{
@@ -70,9 +78,10 @@ body{
     .game-container {
         width:100vw;
         max-width:none;
-        height:100dvh;
-        min-height:100dvh;
+        height:100vh;
+        min-height:100vh;
         border-radius:0;
+        overflow:hidden;
     }
     .home-banner { padding:24px 16px; gap:20px; }
     .player-setup { padding:12px; }
@@ -84,8 +93,9 @@ body{
     .game-status-bar { top:95px; width:92%; }
     .action-buttons-left, .action-buttons-right { top:140px; }
     .road {
-        height:calc(100dvh - 130px);
-        min-height:calc(100dvh - 130px);
+        width:100%;
+        height:calc(100% - 130px);
+        min-height:auto;
         border-radius:0;
         border-left:0;
         border-right:0;
@@ -1361,8 +1371,9 @@ body.dark .settings-dialog{background:#0f1720;color:#e6eef7}
     justify-content:center;
     align-items:center;
     gap:16px;
-    background:rgba(0,0,0,.82);
-    z-index:40;
+    background:rgba(0,0,0,.92);
+    z-index:9999;
+    pointer-events:auto;
     border-radius:18px;
     text-align:center;
     padding:24px;
@@ -1474,12 +1485,12 @@ h1{
     justify-content:space-between;
     padding:0 12px;
     gap:20px;
-    z-index:1000;
+    z-index:10;
     pointer-events:none;
 }
 
 .controls.is-hidden{
-    display:none;
+    display:none !important;
 }
 
 .controls button{

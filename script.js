@@ -607,6 +607,7 @@ function showGameOverSummary() {
     if (finalScoreEl) finalScoreEl.innerText = score;
     if (finalLevelEl) finalLevelEl.innerText = Math.floor(score / 20) + 1;
     if (finalCoinsEl) finalCoinsEl.innerText = coinsCollected;
+    if (controlPad) controlPad.classList.add('is-hidden');
     gameOver.style.display = "flex";
 }
 
@@ -627,6 +628,7 @@ restartBtn.addEventListener("click", function () {
     updatePlayerPosition();
     initializeEnemies();
     initializeCoins();
+    setControlMode(controlMode);
     moveRoad();
     moveEnemies();
     moveCoins();

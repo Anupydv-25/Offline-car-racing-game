@@ -376,12 +376,16 @@ function setPlayerLane(targetLane) {
     if (isGameOver || isPaused) return;
     const clampedLane = Math.min(Math.max(targetLane, 0), lanePositions.length - 1);
     if (clampedLane === currentLane) return;
+
     currentLane = clampedLane;
     playerTargetX = lanePositions[currentLane] || 0;
-    playerX = playerTargetX;
+
     if (player) {
-        player.style.left = playerTargetX + "px";
+        const baseLeft = Number.isFinite(playerX) ? playerX : parseFloat(player.style.left || '0');
+        playerX = baseLeft;
+        player.style.left = Math.round(playerX) + "px";
     }
+
     triggerLaneBoost();
 }
 
@@ -425,15 +429,19 @@ function stopHoldMove() {
 }
 
 if (leftBtn) {
-    leftBtn.addEventListener("click", movePlayerLeft);
-    leftBtn.addEventListener("pointerdown", () => startHoldMove(-1));
+    leftBtn.addEventListener("pointerdown", (event) => {
+        event.preventDefault();
+        startHoldMove(-1);
+    });
     leftBtn.addEventListener("pointerup", stopHoldMove);
     leftBtn.addEventListener("pointerleave", stopHoldMove);
     leftBtn.addEventListener("pointercancel", stopHoldMove);
 }
 if (rightBtn) {
-    rightBtn.addEventListener("click", movePlayerRight);
-    rightBtn.addEventListener("pointerdown", () => startHoldMove(1));
+    rightBtn.addEventListener("pointerdown", (event) => {
+        event.preventDefault();
+        startHoldMove(1);
+    });
     rightBtn.addEventListener("pointerup", stopHoldMove);
     rightBtn.addEventListener("pointerleave", stopHoldMove);
     rightBtn.addEventListener("pointercancel", stopHoldMove);
@@ -474,6 +482,11 @@ function updatePlayerVisual(deltaSeconds = 0.016) {
     if (!player) return;
     const easing = 1 - Math.exp(-deltaSeconds * 12);
     playerX += (playerTargetX - playerX) * easing;
+
+    if (Math.abs(playerTargetX - playerX) < 0.6) {
+        playerX = playerTargetX;
+    }
+
     player.style.left = Math.round(playerX) + "px";
 }
 

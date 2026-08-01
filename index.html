@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Offline Car Racing Game</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="home" id="home">
+    <div class="home-banner">
+        <div class="home-copy">
+            <span class="home-tag">New Racing Adventure</span>
+            <h1>🏁 Welcome to Car Racing</h1>
+            <p>Jump into the fast lane with thrilling traffic races and high-score challenges. Press Play to continue.</p>
+            <div class="theme-picker">
+                <button class="theme-card" data-theme="city" type="button">
+                    <span class="theme-icon">🏙</span>
+                    <span>City</span>
+                </button>
+                <button class="theme-card" data-theme="desert" type="button">
+                    <span class="theme-icon">🏜</span>
+                    <span>Desert</span>
+                </button>
+                <button class="theme-card" data-theme="snow" type="button">
+                    <span class="theme-icon">❄️</span>
+                    <span>Snow</span>
+                </button>
+            </div>
+            <div class="mode-switcher">
+                <button id="homePlayBtn" class="home-primary">Start Game</button>
+            </div>
+        </div>
+        <div class="home-feature-bar">
+            <button class="home-option" id="settingsBtn">Settings</button>
+            <button class="home-option" id="aboutBtn">About</button>
+        </div>
+        <div class="home-banner-credit">ANUP YADAV</div>
+        <div class="home-footer">Powered by ANUP YADAV.25 // 2026</div>
+    </div>
+    <div class="home-contact-banner">
+        <div class="home-contact-item">
+            <span class="home-contact-icon home-icon-instagram">IG</span>
+            <span class="home-contact-text">anupydv.25</span>
+        </div>
+        <div class="home-contact-item">
+            <span class="home-contact-icon home-icon-whatsapp">WA</span>
+            <span class="home-contact-text">anupydv.25_</span>
+        </div>
+    </div>
+</div>
+
+<div class="game-container">
+
+    <div class="score">
+        Score :
+        <span id="score">0</span>
+    </div>
+
+    <div class="high-score">
+        High :
+        <span id="highScore">0</span>
+    </div>
+
+
+    <div class="level" id="level">
+        Level : 1
+    </div>
+
+    <div class="action-buttons-left">
+        <button id="pauseBtn">⏸️ </button>
+    </div>
+    <div class="action-buttons-right">
+        <div class="resume-wrap">
+            <button id="resumeBtn" disabled>
+                <div class="coins-display">Coins: <span id="coins">0</span></div>
+                ▶️ 
+            </button>
+        </div>
+    </div>
+
+    <div class="road" id="road">
+        <div class="road-side left">
+            <div class="road-object obj-1"></div>
+            <div class="road-object obj-2"></div>
+            <div class="road-object obj-5"></div>
+            <div class="road-object obj-6"></div>
+        </div>
+        <div class="road-side right">
+            <div class="road-object obj-3"></div>
+            <div class="road-object obj-4"></div>
+            <div class="road-object obj-7"></div>
+            <div class="road-object obj-8"></div>
+        </div>
+
+        <div class="line" style="top:0px"></div>
+        <div class="line" style="top:150px"></div>
+        <div class="line" style="top:300px"></div>
+        <div class="line" style="top:450px"></div>
+        <div class="line" style="top:600px"></div>
+        <div class="enemy enemy-1">
+            <img src="enemy.png-removebg-preview.png" alt="Enemy Car">
+        </div>
+        <div class="enemy enemy-2">
+            <img src="enemy.png-removebg-preview.png" alt="Enemy Car">
+        </div>
+        <div class="enemy enemy-3">
+            <img src="enemy.png-removebg-preview.png" alt="Enemy Car">
+        </div>
+        <div class="player" id="player">
+        <img src="player.png-removebg-preview (1).png" alt="player car"></div>
+        <div class="controls" id="controlPad">
+    <button id="leftBtn" type="button" aria-label="Move left">⬅️</button>
+    <button id="rightBtn" type="button" aria-label="Move right">➡️</button>
+</div>
+
+    </div>
+
+</div>
+
+<div id="feedbackLayer" class="feedback-layer"></div>
+
+<div class="game-over" id="gameOver">
+
+    <h1>💥 Game Over</h1>
+    <div class="game-over-summary">
+        <div class="summary-row"><strong>Final Score:</strong> <span id="finalScore">0</span></div>
+        <div class="summary-row"><strong>Level:</strong> <span id="finalLevel">1</span></div>
+        <div class="summary-row"><strong>Coins:</strong> <span id="finalCoins">0</span></div>
+    </div>
+    <button id="restartBtn">
+        Restart
+    </button>
+    <button id="goBackBtn">
+        Go Back
+    </button>
+
+</div>
+<!-- Settings modal -->
+<div class="settings-modal" id="settingsModal" style="display:none;">
+    <div class="settings-dialog">
+        <h2>Settings</h2>
+        <div class="setting-item">
+            <label><input type="checkbox" id="engineSound"> Engine Sound</label>
+        </div>
+        <div class="setting-item">
+            <label><input type="checkbox" id="crashSound"> Crash Sound</label>
+        </div>
+        
+        <div class="setting-item">
+            <label><input type="checkbox" id="darkModeToggle"> Dark Mode</label>
+        </div>
+        <div class="setting-item">
+            <span class="setting-label">Control Mode</span>
+            <div class="control-mode-options">
+                <label><input type="radio" name="controlMode" value="buttons" checked> Buttons</label>
+                <label><input type="radio" name="controlMode" value="swipe"> Swipe</label>
+            </div>
+        </div>
+        <div class="settings-actions">
+            <button id="saveSettingsBtn">Save</button>
+            <button id="closeSettingsBtn">Close</button>
+        </div>
+    </div>
+</div>
+
+<div class="settings-modal" id="aboutModal" style="display:none;">
+    <div class="settings-dialog">
+        <div class="about-header">
+            <div class="about-icon">🏎️</div>
+            <div class="about-header-copy">
+                <h2>About Car Racing</h2>
+                <p class="about-subtitle">A heartfelt racing adventure built with family, creativity, and powerful HTML/CSS/JavaScript.</p>
+                <div class="about-badge">Family built · Made for nieces</div>
+            </div>
+        </div>
+        <div class="setting-item about-text">
+            <div class="about-segment">
+                <p class="about-highlight">Welcome to Car Racing! 🏁</p>
+                <p>This game is a personal project created with HTML, CSS & JavaScript. It was made to provide a fun and simple racing experience for everyone.</p>
+                <p>This game is a thrilling, fast-lane racing adventure featuring diverse environments like City, Desert, and Snow, designed to test your high-score skills.</p>
+            </div>
+            <div class="about-segment">
+                <h3>❤️ A Personal Message</h3>
+                <p>I created this game with love for my little nieces (my sisters & brother daughters & son ), so they can enjoy playing something made by their own family.</p>
+                <p>This project also has a special place in my heart. My father is no longer with us, and I built this game as a way to improve my skills and make him proud. Even though he isn't here today, every line of code reminds me to keep learning and moving forward. I really missing a lot papa & Love you ❤️‍🩹🥹</p>
+            </div>
+            <div class="about-segment about-contact">
+                <h3>Sponsorship & Advertising</h3>
+                <p>If you would like to advertise your brand or become a sponsor in this game, feel free to contact me.</p>
+                <div class="contact-item"><span>📧</span> anupyadav2505@gmail.com</div>
+                <div class="contact-item"><span>📷</span> Instagram: @anupydv.25</div>
+                <div class="contact-item"><span>💬</span> WhatsApp: anupydv.25_</div>
+            </div>
+            <div class="about-footer">Created by ANUP YADAV © 2026</div>
+        </div>
+        <div class="settings-actions">
+            <button id="closeAboutBtn">Close</button>
+        </div>
+    </div>
+</div>
+
+ <script src="script.js"></script>
+
+</body>
+</html>
+

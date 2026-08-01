@@ -7,7 +7,7 @@ highScoreDisplay.innerText = highScore;
 const scoreDisplay = document.getElementById("score");
 
 function getCurrentSpeed() {
-    let speed = 10 + Math.floor(score / 20) * 1;
+    let speed = 7 + Math.floor(score / 20) * 1;
     if (speed > 50) speed = 50;
     return speed;
 }
@@ -61,9 +61,7 @@ const gameOver = document.getElementById("gameOver");
 
 let isPaused = false;
 let isGameOver = false;
-let roadAnimId = null;
-let enemyAnimId = null;
-let collisionAnimId = null;
+let sceneAnimId = null;
 let lanePositions = [0, 0, 0];
 let currentLane = 1;
 let audioContext = null;
@@ -71,6 +69,11 @@ let engineOscillator = null;
 let engineGainNode = null;
 let engineFilterNode = null;
 let controlMode = 'buttons';
+let lastFrameTime = null;
+let playerX = 0;
+let playerTargetX = 0;
+let holdMoveTimer = null;
+let holdMoveDirection = 0;
 
 function ensureAudioContext() {
     if (!audioContext) {
@@ -131,7 +134,15 @@ function isCrashSoundEnabled() {
 function startEngineSound() {
     if (!isEngineSoundEnabled()) return;
     const ctx = ensureAudioContext();
-    if (!ctx || engineOscillator) return;
+    if (!ctx) return;
+
+    if (engineOscillator && engineGainNode && engineFilterNode) {
+        try {
+            engineOscillator.disconnect();
+        } catch (e) {}
+        engineFilterNode.disconnect();
+        engineGainNode.disconnect();
+    }
 
     engineOscillator = ctx.createOscillator();
     engineOscillator.type = 'triangle';
@@ -166,15 +177,15 @@ function updateEnginePitch() {
 function stopEngineSound() {
     if (engineOscillator) {
         try { engineOscillator.stop(); } catch (e) {}
-        engineOscillator.disconnect();
+        try { engineOscillator.disconnect(); } catch (e) {}
         engineOscillator = null;
     }
     if (engineFilterNode) {
-        engineFilterNode.disconnect();
+        try { engineFilterNode.disconnect(); } catch (e) {}
         engineFilterNode = null;
     }
     if (engineGainNode) {
-        engineGainNode.disconnect();
+        try { engineGainNode.disconnect(); } catch (e) {}
         engineGainNode = null;
     }
 }
@@ -204,6 +215,23 @@ function triggerCrashFlash() {
     void layer.offsetWidth;
     layer.classList.add('crash-flash');
     setTimeout(() => layer.classList.remove('crash-flash'), 220);
+}
+
+function triggerRoadShake() {
+    const roadElement = document.getElementById('road');
+    if (!roadElement) return;
+    roadElement.classList.remove('crash-shake');
+    void roadElement.offsetWidth;
+    roadElement.classList.add('crash-shake');
+    setTimeout(() => roadElement.classList.remove('crash-shake'), 350);
+}
+
+function triggerLaneBoost() {
+    if (!player) return;
+    player.classList.remove('boost-move');
+    void player.offsetWidth;
+    player.classList.add('boost-move');
+    setTimeout(() => player.classList.remove('boost-move'), 220);
 }
 
 gameContainer.style.display = "none";
@@ -272,15 +300,16 @@ let coinsCollected = 0;
 const coins = [];
 let coinTops = [];
 let coinLaneIndexes = [];
-let coinAnimId = null;
 
-function moveRoad() {
+function moveRoad(deltaSeconds = 0.016) {
     if (isGameOver || isPaused) return;
+
+    const speed = getCurrentSpeed() * 60 * deltaSeconds;
 
     lines.forEach(function(line) {
         let top = parseInt(line.style.top);
 
-        top += getCurrentSpeed();
+        top += speed;
 
         if (top > 600) {
             top = -100;
@@ -288,8 +317,6 @@ function moveRoad() {
 
         line.style.top = top + "px";
     });
-
-    roadAnimId = requestAnimationFrame(moveRoad);
 }
 
 const leftBtn = document.getElementById("leftBtn");
@@ -297,29 +324,47 @@ const rightBtn = document.getElementById("rightBtn");
 const controlPad = document.getElementById("controlPad");
 let swipeStartX = null;
 
+function syncControlVisibility() {
+    if (!controlPad) return;
+    controlPad.classList.toggle('is-hidden', controlMode === 'swipe');
+}
+
 function setControlMode(mode) {
     const normalizedMode = mode === 'swipe' ? 'swipe' : 'buttons';
     controlMode = normalizedMode;
-    if (controlPad) {
-        controlPad.classList.toggle('is-hidden', normalizedMode === 'swipe');
-    }
+    syncControlVisibility();
 }
 
 function handleSwipeStart(event) {
     if (controlMode !== 'swipe') return;
-    const touch = event.touches && event.touches[0];
-    if (!touch) return;
-    swipeStartX = touch.clientX;
+    const point = event.touches && event.touches[0] ? event.touches[0] : event;
+    if (!point) return;
+    swipeStartX = point.clientX;
+}
+
+function handleSwipeMove(event) {
+    if (controlMode !== 'swipe' || swipeStartX === null) return;
+    const point = event.touches && event.touches[0] ? event.touches[0] : event;
+    if (!point) return;
+    const deltaX = point.clientX - swipeStartX;
+    if (Math.abs(deltaX) < 24) return;
+    if (deltaX < 0) {
+        swipeStartX = point.clientX;
+        movePlayerLeft();
+    } else {
+        swipeStartX = point.clientX;
+        movePlayerRight();
+    }
 }
 
 function handleSwipeEnd(event) {
     if (controlMode !== 'swipe') return;
     if (swipeStartX === null) return;
-    const touch = event.changedTouches && event.changedTouches[0];
-    if (!touch) return;
-    const deltaX = touch.clientX - swipeStartX;
+    const point = event.changedTouches && event.changedTouches[0] ? event.changedTouches[0] : event;
+    if (!point) return;
+    const deltaX = point.clientX - swipeStartX;
     swipeStartX = null;
-    if (Math.abs(deltaX) < 45) return;
+    if (Math.abs(deltaX) < 24) return;
     if (deltaX < 0) {
         movePlayerLeft();
     } else {
@@ -327,30 +372,83 @@ function handleSwipeEnd(event) {
     }
 }
 
+function setPlayerLane(targetLane) {
+    if (isGameOver || isPaused) return;
+    const clampedLane = Math.min(Math.max(targetLane, 0), lanePositions.length - 1);
+    if (clampedLane === currentLane) return;
+    currentLane = clampedLane;
+    playerTargetX = lanePositions[currentLane] || 0;
+    playerX = playerTargetX;
+    if (player) {
+        player.style.left = playerTargetX + "px";
+    }
+    triggerLaneBoost();
+}
+
 function movePlayerLeft() {
     if (isGameOver || isPaused) return;
     if (currentLane > 0) {
-        currentLane -= 1;
-        position = lanePositions[currentLane];
-        player.style.left = position + "px";
+        setPlayerLane(currentLane - 1);
     }
 }
 
 function movePlayerRight() {
     if (isGameOver || isPaused) return;
     if (currentLane < lanePositions.length - 1) {
-        currentLane += 1;
-        position = lanePositions[currentLane];
-        player.style.left = position + "px";
+        setPlayerLane(currentLane + 1);
     }
 }
 
-if (leftBtn) leftBtn.addEventListener("click", movePlayerLeft);
-if (rightBtn) rightBtn.addEventListener("click", movePlayerRight);
+function startHoldMove(direction) {
+    if (isGameOver || isPaused) return;
+    holdMoveDirection = direction;
+    if (holdMoveTimer) {
+        clearInterval(holdMoveTimer);
+    }
+    const step = () => {
+        if (holdMoveDirection < 0) {
+            movePlayerLeft();
+        } else if (holdMoveDirection > 0) {
+            movePlayerRight();
+        }
+    };
+    step();
+    holdMoveTimer = setInterval(step, 95);
+}
+
+function stopHoldMove() {
+    if (holdMoveTimer) {
+        clearInterval(holdMoveTimer);
+        holdMoveTimer = null;
+    }
+    holdMoveDirection = 0;
+}
+
+if (leftBtn) {
+    leftBtn.addEventListener("click", movePlayerLeft);
+    leftBtn.addEventListener("pointerdown", () => startHoldMove(-1));
+    leftBtn.addEventListener("pointerup", stopHoldMove);
+    leftBtn.addEventListener("pointerleave", stopHoldMove);
+    leftBtn.addEventListener("pointercancel", stopHoldMove);
+}
+if (rightBtn) {
+    rightBtn.addEventListener("click", movePlayerRight);
+    rightBtn.addEventListener("pointerdown", () => startHoldMove(1));
+    rightBtn.addEventListener("pointerup", stopHoldMove);
+    rightBtn.addEventListener("pointerleave", stopHoldMove);
+    rightBtn.addEventListener("pointercancel", stopHoldMove);
+}
+document.addEventListener("pointerup", stopHoldMove);
+document.addEventListener("pointercancel", stopHoldMove);
 if (road) {
     road.addEventListener('touchstart', handleSwipeStart, { passive: true });
+    road.addEventListener('touchmove', handleSwipeMove, { passive: true });
     road.addEventListener('touchend', handleSwipeEnd, { passive: true });
     road.addEventListener('touchcancel', () => { swipeStartX = null; }, { passive: true });
+    road.addEventListener('pointerdown', handleSwipeStart, { passive: true });
+    road.addEventListener('pointermove', handleSwipeMove, { passive: true });
+    road.addEventListener('pointerup', handleSwipeEnd, { passive: true });
+    road.addEventListener('pointercancel', () => { swipeStartX = null; }, { passive: true });
 }
 
 const enemies = document.querySelectorAll(".enemy");
@@ -365,10 +463,18 @@ function getSpawnTop(index) {
 
 function updatePlayerPosition() {
     currentLane = Math.min(Math.max(currentLane, 0), lanePositions.length - 1);
-    position = lanePositions[currentLane] || 0;
+    playerTargetX = lanePositions[currentLane] || 0;
+    playerX = playerTargetX;
     if (player) {
-        player.style.left = position + "px";
+        player.style.left = playerTargetX + "px";
     }
+}
+
+function updatePlayerVisual(deltaSeconds = 0.016) {
+    if (!player) return;
+    const easing = 1 - Math.exp(-deltaSeconds * 12);
+    playerX += (playerTargetX - playerX) * easing;
+    player.style.left = Math.round(playerX) + "px";
 }
 
 function getLanePositions(width){
@@ -394,14 +500,15 @@ function initializeEnemies() {
     });
 }
 
-function moveEnemies() {
+function moveEnemies(deltaSeconds = 0.016) {
     if (isGameOver || isPaused) return;
     updateEnginePitch();
 
     const lanes = lanePositions;
+    const speed = getCurrentSpeed() * 60 * deltaSeconds;
 
     enemies.forEach((enemy, index) => {
-        enemyTops[index] += getCurrentSpeed();
+        enemyTops[index] += speed;
 
         if (enemyTops[index] > 600) {
             score++;
@@ -425,8 +532,6 @@ function moveEnemies() {
 
         enemy.style.top = enemyTops[index] + "px";
     });
-
-    enemyAnimId = requestAnimationFrame(moveEnemies);
 }
 
 function initializeCoins(){
@@ -455,11 +560,12 @@ function initializeCoins(){
     }
 }
 
-function moveCoins(){
+function moveCoins(deltaSeconds = 0.016){
     if (isGameOver || isPaused) return;
     const lanes = lanePositions;
+    const speed = getCurrentSpeed() * 60 * deltaSeconds;
     coins.forEach((coin, index) => {
-        coinTops[index] += getCurrentSpeed();
+        coinTops[index] += speed;
         if (coinTops[index] > 600){
             // respawn above
             coinTops[index] = getSpawnTop(index);
@@ -468,7 +574,6 @@ function moveCoins(){
         }
         coin.style.top = coinTops[index] + 'px';
     });
-    coinAnimId = requestAnimationFrame(moveCoins);
 }
 
 function checkCollision() {
@@ -517,22 +622,46 @@ function checkCollision() {
             showGameOverSummary();
             if (isCrashSoundEnabled()) playCrashSound();
             triggerCrashFlash();
+            triggerRoadShake();
             return;
         }
     }
+}
 
-    collisionAnimId = requestAnimationFrame(checkCollision);
+function runSceneFrame(timestamp) {
+    if (!lastFrameTime) {
+        lastFrameTime = timestamp;
+    }
+
+    const deltaSeconds = Math.min((timestamp - lastFrameTime) / 1000, 0.03);
+    lastFrameTime = timestamp;
+
+    if (!isGameOver && !isPaused) {
+        moveRoad(deltaSeconds);
+        moveEnemies(deltaSeconds);
+        moveCoins(deltaSeconds);
+        updatePlayerVisual(deltaSeconds);
+        checkCollision();
+        updateEnginePitch();
+    }
+
+    sceneAnimId = requestAnimationFrame(runSceneFrame);
+}
+
+function startSceneLoop() {
+    if (sceneAnimId) {
+        cancelAnimationFrame(sceneAnimId);
+    }
+    lastFrameTime = null;
+    sceneAnimId = requestAnimationFrame(runSceneFrame);
 }
 
 function startGame() {
     isGameOver = false;
     isPaused = false;
-    // cancel any leftover animation frames from previous runs
-    if (roadAnimId) { cancelAnimationFrame(roadAnimId); roadAnimId = null; }
-    if (enemyAnimId) { cancelAnimationFrame(enemyAnimId); enemyAnimId = null; }
-    if (collisionAnimId) { cancelAnimationFrame(collisionAnimId); collisionAnimId = null; }
-    if (coinAnimId) { cancelAnimationFrame(coinAnimId); coinAnimId = null; }
-    if (coinAnimId) { cancelAnimationFrame(coinAnimId); coinAnimId = null; }
+    if (sceneAnimId) { cancelAnimationFrame(sceneAnimId); sceneAnimId = null; }
+    stopHoldMove();
+    stopEngineSound();
     playStartSound();
     playEngineRev();
     startEngineSound();
@@ -545,15 +674,13 @@ function startGame() {
     updateLanePositions();
     currentLane = 1;
     updatePlayerPosition();
+    syncControlVisibility();
     pauseBtn.disabled = false;
     resumeBtn.disabled = true;
 
     initializeEnemies();
     initializeCoins();
-    moveRoad();
-    moveEnemies();
-    moveCoins();
-    checkCollision();
+    startSceneLoop();
 }
 
 window.addEventListener('resize', function() {
@@ -577,10 +704,11 @@ function pauseGame() {
     resumeBtn.disabled = false;
     stopEngineSound();
     if (player) player.classList.remove('engine-thrust');
-    if (roadAnimId) cancelAnimationFrame(roadAnimId);
-    if (enemyAnimId) cancelAnimationFrame(enemyAnimId);
-    if (collisionAnimId) cancelAnimationFrame(collisionAnimId);
-    if (coinAnimId) cancelAnimationFrame(coinAnimId);
+    if (sceneAnimId) {
+        cancelAnimationFrame(sceneAnimId);
+        sceneAnimId = null;
+    }
+    stopHoldMove();
 }
 
 function resumeGame() {
@@ -588,13 +716,11 @@ function resumeGame() {
     isPaused = false;
     pauseBtn.disabled = false;
     resumeBtn.disabled = true;
+    stopEngineSound();
     startEngineSound();
     if (player) player.classList.add('engine-thrust');
     playEngineRev();
-    moveRoad();
-    moveEnemies();
-    moveCoins();
-    checkCollision();
+    startSceneLoop();
 }
 
 const finalScoreEl = document.getElementById('finalScore');
@@ -607,15 +733,16 @@ function showGameOverSummary() {
     if (finalScoreEl) finalScoreEl.innerText = score;
     if (finalLevelEl) finalLevelEl.innerText = Math.floor(score / 20) + 1;
     if (finalCoinsEl) finalCoinsEl.innerText = coinsCollected;
-    if (controlPad) controlPad.classList.add('is-hidden');
+    syncControlVisibility();
     gameOver.style.display = "flex";
 }
 
 restartBtn.addEventListener("click", function () {
-    // restart in-place without full reload
     isGameOver = false;
     isPaused = false;
     gameOver.style.display = "none";
+    stopHoldMove();
+    stopEngineSound();
     playStartSound();
     score = 0;
     scoreDisplay.innerText = score;
@@ -626,21 +753,17 @@ restartBtn.addEventListener("click", function () {
     updateLanePositions();
     currentLane = 1;
     updatePlayerPosition();
+    syncControlVisibility();
     initializeEnemies();
     initializeCoins();
     setControlMode(controlMode);
-    moveRoad();
-    moveEnemies();
-    moveCoins();
-    checkCollision();
+    startSceneLoop();
 });
 
 if (goBackBtn) goBackBtn.addEventListener("click", function () {
     // stop animations and return to home
-    if (roadAnimId) { cancelAnimationFrame(roadAnimId); roadAnimId = null; }
-    if (enemyAnimId) { cancelAnimationFrame(enemyAnimId); enemyAnimId = null; }
-    if (collisionAnimId) { cancelAnimationFrame(collisionAnimId); collisionAnimId = null; }
-    if (coinAnimId) { cancelAnimationFrame(coinAnimId); coinAnimId = null; }
+    if (sceneAnimId) { cancelAnimationFrame(sceneAnimId); sceneAnimId = null; }
+    stopHoldMove();
     stopEngineSound();
     if (player) player.classList.remove('engine-thrust');
     isPaused = false;

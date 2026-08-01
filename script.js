@@ -7,7 +7,7 @@ highScoreDisplay.innerText = highScore;
 const scoreDisplay = document.getElementById("score");
 
 function getCurrentSpeed() {
-    let speed = 5 + Math.floor(score / 20) * 1;
+    let speed = 10 + Math.floor(score / 20) * 1;
     if (speed > 50) speed = 50;
     return speed;
 }

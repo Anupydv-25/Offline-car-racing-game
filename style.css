@@ -96,11 +96,18 @@ body{
     .action-buttons-left, .action-buttons-right { top:140px; }
     .road {
         width:100%;
-        height:calc(100% - 130px);
+        /* Use dynamic viewport units on mobile to fill the full screen including browser chrome/safe areas */
+        height:100dvh;
+        min-height:100dvh;
+        height:100svh;
+        height:100vh; /* fallback */
         min-height:auto;
         border-radius:0;
         border-left:0;
         border-right:0;
+        /* Respect iOS safe area inset at the bottom */
+        padding-bottom: constant(safe-area-inset-bottom);
+        padding-bottom: env(safe-area-inset-bottom);
     }
     .score, .high-score, .level {
         font-size:0.9rem;
